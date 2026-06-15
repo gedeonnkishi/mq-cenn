@@ -1,5 +1,5 @@
 # =============================================================================
-# mq_cenn_nmi_candidate.py
+# mq_cenn.py
 #
 # MQ-CeNN — claim-bounded QML-strength emulator for time-series forecasting.
 #
@@ -41,6 +41,8 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import TimeSeriesSplit
+
+__version__ = "1.1.0"
 
 
 ArrayLike = Union[np.ndarray, Sequence[float]]
@@ -572,7 +574,26 @@ class MQCeNNRegressor(BaseEstimator, RegressorMixin):
         last_value_index: Optional[int] = None,
         random_state: int = 42,
         device: Optional[str] = None,
+        # Backward-compatible aliases used by earlier notebooks.
+        n_quantum_features: Optional[int] = None,
+        n_experts: Optional[int] = None,
+        base_seed: Optional[int] = None,
+        gamma: Optional[float] = None,
     ):
+        if n_quantum_features is not None:
+            n_features_per_expert = int(n_quantum_features)
+        if base_seed is not None:
+            random_state = int(base_seed)
+        if gamma is not None:
+            g = float(gamma)
+            kernel_specs = tuple(
+                KernelSpec(spec.name, spec.gamma * g, spec.period, spec.degree)
+                for spec in kernel_specs
+            )
+        if n_experts is not None:
+            n_families = max(1, len(tuple(kernel_specs)))
+            n_experts_per_kernel = max(1, int(np.ceil(int(n_experts) / n_families)))
+
         self.n_features_per_expert = int(n_features_per_expert)
         self.n_experts_per_kernel = int(n_experts_per_kernel)
         self.kernel_specs = tuple(kernel_specs)
@@ -595,6 +616,12 @@ class MQCeNNRegressor(BaseEstimator, RegressorMixin):
         self.last_value_index = last_value_index
         self.random_state = int(random_state)
         self.device = device
+
+        # Store legacy aliases so sklearn.get_params() remains valid.
+        self.n_quantum_features = n_quantum_features
+        self.n_experts = n_experts
+        self.base_seed = base_seed
+        self.gamma = gamma
 
         self.pool_: Optional[MultiKernelExpertPool] = None
         self.fallback_: Optional[KernelRidgeExpert] = None
