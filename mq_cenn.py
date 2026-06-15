@@ -168,10 +168,15 @@ class CeNNGatingEngine(nn.Module):
         dropout: float = 0.05,
     ):
         super().__init__()
+        # kernel_size must be odd to guarantee output_len == input_len with
+        # padding = kernel_size // 2. Enforce this silently.
+        if kernel_size % 2 == 0:
+            kernel_size = kernel_size + 1
+        pad = kernel_size // 2
         self.local_cell = nn.Sequential(
-            nn.Conv1d(input_dim, hidden_dim, kernel_size, padding=kernel_size // 2),
+            nn.Conv1d(input_dim, hidden_dim, kernel_size, padding=pad),
             nn.Tanh(),
-            nn.Conv1d(hidden_dim, hidden_dim, kernel_size, padding=kernel_size // 2),
+            nn.Conv1d(hidden_dim, hidden_dim, kernel_size, padding=pad),
             nn.Tanh(),
         )
         self.state_head = nn.Sequential(
@@ -269,6 +274,13 @@ class MQCeNNRegressor(BaseEstimator, RegressorMixin):
         y = _as_float_array(y).reshape(-1)
         if X.shape[0] != y.shape[0]:
             raise ValueError("X and y length mismatch.")
+        if self.last_value_index is not None:
+            lvi = int(self.last_value_index)
+            if lvi < 0 or lvi >= X.shape[1]:
+                raise ValueError(
+                    f"last_value_index={lvi} is out of range for X with {X.shape[1]} features. "
+                    f"Expected 0 <= last_value_index < {X.shape[1]}."
+                )
         y_fit = self._target_for_training(X, y)
         self.pool_ = QuantumEntityPool(
             n_experts=self.n_experts,
@@ -298,7 +310,10 @@ class MQCeNNRegressor(BaseEstimator, RegressorMixin):
         loss_fn = nn.MSELoss()
         best_state, best_val = None, np.inf
         no_gain = 0
+        epoch = -1  # guard: TrainingTrace.epochs_ran = 0 if cenn_epochs=0
         val_idx_t = torch.as_tensor(val_idx, dtype=torch.long, device=dev)
+        if len(val_idx) == 0:
+            val_idx_t = torch.zeros(0, dtype=torch.long, device=dev)
         for epoch in range(self.cenn_epochs):
             self.cenn_.train()
             order = train_idx.copy()
