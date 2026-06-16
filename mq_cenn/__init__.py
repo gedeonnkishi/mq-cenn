@@ -1,43 +1,73 @@
-"""
-MQ-CeNN public API.
+from __future__ import annotations
 
-The package exposes the main estimator API while keeping submodules
-such as mq_cenn.utils importable without loading heavy ML dependencies.
-"""
+from importlib import import_module
+
 
 __version__ = "0.1.0"
 
-_PUBLIC_LEGACY_SYMBOLS = {
-    "KernelSpec",
-    "DEFAULT_KERNEL_SPECS",
-    "MQCeNNRegressor",
-    "MQCeNNTrace",
-    "make_ablation_suite",
-    "set_global_seed",
+
+_SYMBOL_TO_MODULE = {
+    # Core kernels
+    "KernelName": "mq_cenn.core.kernels",
+    "KernelSpec": "mq_cenn.core.kernels",
+    "DEFAULT_KERNEL_SPECS": "mq_cenn.core.kernels",
+    "SpectralFeatureProjector": "mq_cenn.core.kernels",
+
+    # Core experts
+    "KernelRidgeExpert": "mq_cenn.core.experts",
+    "MultiKernelExpertPool": "mq_cenn.core.experts",
+
+    # Reliability
+    "NoveltyDetector": "mq_cenn.core.reliability",
+    "ReliabilityCalibrator": "mq_cenn.core.reliability",
+
+    # Neural components
+    "CrossExpertBridge": "mq_cenn.core.bridge",
+    "SignedInterferenceGate": "mq_cenn.core.gate",
+
+    # Estimators
+    "FallbackStrategy": "mq_cenn.estimators",
+    "MQCeNNRegressor": "mq_cenn.estimators",
+    "MQCeNNTrace": "mq_cenn.estimators",
+
+    # Ablation
+    "make_ablation_suite": "mq_cenn.ablation",
+
+    # Utilities
+    "set_global_seed": "mq_cenn.utils",
 }
 
 
 def __getattr__(name: str):
     """
-    Lazy-load legacy symbols only when they are explicitly requested.
+    Lazy public API loader.
 
-    This prevents imports such as `from mq_cenn.utils import ...`
-    from requiring scikit-learn or other heavy dependencies.
+    This keeps lightweight imports fast while exposing the main framework API
+    from the package root.
     """
-    if name in _PUBLIC_LEGACY_SYMBOLS:
-        from . import legacy
+    if name not in _SYMBOL_TO_MODULE:
+        raise AttributeError(f"module 'mq_cenn' has no attribute {name!r}")
 
-        value = getattr(legacy, name)
-        globals()[name] = value
-        return value
+    module = import_module(_SYMBOL_TO_MODULE[name])
+    value = getattr(module, name)
 
-    raise AttributeError(f"module 'mq_cenn' has no attribute '{name}'")
+    globals()[name] = value
+    return value
 
 
 __all__ = [
     "__version__",
+    "KernelName",
     "KernelSpec",
     "DEFAULT_KERNEL_SPECS",
+    "SpectralFeatureProjector",
+    "KernelRidgeExpert",
+    "MultiKernelExpertPool",
+    "NoveltyDetector",
+    "ReliabilityCalibrator",
+    "CrossExpertBridge",
+    "SignedInterferenceGate",
+    "FallbackStrategy",
     "MQCeNNRegressor",
     "MQCeNNTrace",
     "make_ablation_suite",
