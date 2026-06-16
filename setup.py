@@ -1,16 +1,14 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="mq-cenn",
-    version="1.0.0",
-    py_modules=["mq_cenn"],
+    version="0.1.0",
+    packages=find_packages(),
     install_requires=[
         "numpy>=1.22.0",
         "torch>=2.0.0",
         "scikit-learn>=1.0.0",
-        "pandas>=1.4.0",
         "scipy>=1.8.0",
-        "matplotlib>=3.5.0",
     ],
     author="Gedeon Nkishi",
     description="MQ-CeNN framework for time-series forecasting",
