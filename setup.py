@@ -117,6 +117,11 @@ setup(
             "pandas>=1.4.0",
         ],
     },
+    entry_points={
+    "console_scripts": [
+        "mqcenn=mq_cenn.cli.main:main",
+    ],
+},
     ext_modules=ext_modules,
     cmdclass=cmdclass,
     classifiers=[
