@@ -24,7 +24,13 @@ def get_long_description() -> str:
     if readme.exists():
         return readme.read_text(encoding="utf-8")
 
-    return "MQ-CeNN framework for time-series forecasting."
+    return "MQ-CeNN framework for quantum-inspired time-series forecasting."
+
+
+def get_cxx_compile_args() -> list[str]:
+    if os.name == "nt":
+        return ["/O2"]
+    return ["-O3"]
 
 
 def build_extensions():
@@ -36,7 +42,14 @@ def build_extensions():
     ]
 
     if BUILD_CPP:
-        from pybind11.setup_helpers import Pybind11Extension, build_ext
+        try:
+            from pybind11.setup_helpers import Pybind11Extension, build_ext
+        except Exception as exc:
+            raise RuntimeError(
+                "C++ build was requested with MQCENN_BUILD_CPP=1, "
+                "but pybind11 could not be imported. "
+                "Install pybind11 first with: pip install pybind11"
+            ) from exc
 
         ext_modules.append(
             Pybind11Extension(
@@ -49,6 +62,7 @@ def build_extensions():
                 ],
                 include_dirs=include_dirs,
                 cxx_std=17,
+                extra_compile_args=get_cxx_compile_args(),
             )
         )
 
@@ -74,7 +88,7 @@ def build_extensions():
                 ],
                 include_dirs=include_dirs,
                 extra_compile_args={
-                    "cxx": ["-O3"],
+                    "cxx": get_cxx_compile_args(),
                     "nvcc": ["-O3"],
                 },
             )
@@ -91,13 +105,19 @@ ext_modules, cmdclass = build_extensions()
 setup(
     name="mq-cenn",
     version="0.1.0",
-    description="MQ-CeNN framework for time-series forecasting",
+    description="MQ-CeNN framework for quantum-inspired time-series forecasting",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     author="Gedeon Nkishi",
     url="https://github.com/gedeonnkishi/mq-cenn",
-    packages=find_packages(),
-    python_requires=">=3.8",
+    project_urls={
+        "Source": "https://github.com/gedeonnkishi/mq-cenn",
+        "Issues": "https://github.com/gedeonnkishi/mq-cenn/issues",
+    },
+    packages=find_packages(include=["mq_cenn", "mq_cenn.*"]),
+    include_package_data=True,
+    zip_safe=False,
+    python_requires=">=3.10",
     install_requires=[
         "numpy>=1.22.0",
         "scipy>=1.8.0",
@@ -116,12 +136,19 @@ setup(
             "matplotlib>=3.5.0",
             "pandas>=1.4.0",
         ],
+        "examples": [
+            "jupyter>=1.0.0",
+            "notebook>=7.0",
+            "ipykernel>=6.0",
+            "matplotlib>=3.5.0",
+            "pandas>=1.4.0",
+        ],
     },
     entry_points={
-    "console_scripts": [
-        "mqcenn=mq_cenn.cli.main:main",
-    ],
-},
+        "console_scripts": [
+            "mqcenn=mq_cenn.cli.main:main",
+        ],
+    },
     ext_modules=ext_modules,
     cmdclass=cmdclass,
     classifiers=[
