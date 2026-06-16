@@ -1,0 +1,7 @@
+-r requirements.txt
+
+setuptools>=68,<82
+wheel>=0.40
+build>=1.0
+pybind11>=2.11
+pytest>=7.0
