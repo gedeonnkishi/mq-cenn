@@ -26,15 +26,26 @@ _SYMBOL_TO_MODULE = {
     "SignedInterferenceGate": "mq_cenn.core.gate",
 
     # Estimators
-    "FallbackStrategy": "mq_cenn.estimators",
-    "MQCeNNRegressor": "mq_cenn.estimators",
-    "MQCeNNTrace": "mq_cenn.estimators",
+    "FallbackStrategy": "mq_cenn.estimators.regressor",
+    "MQCeNNRegressor": "mq_cenn.estimators.regressor",
+    "MQCeNNTrace": "mq_cenn.estimators.regressor",
 
     # Ablation
-    "make_ablation_suite": "mq_cenn.ablation",
+    "make_ablation_suite": "mq_cenn.ablation.suite",
 
     # Utilities
-    "set_global_seed": "mq_cenn.utils",
+    "set_global_seed": "mq_cenn.utils.seed",
+
+    # Preprocessing
+    "make_supervised_windows": "mq_cenn.preprocessing.windowing",
+    "chronological_split": "mq_cenn.preprocessing.windowing",
+    "train_only_standardize": "mq_cenn.preprocessing.windowing",
+    "flatten_windows": "mq_cenn.preprocessing.windowing",
+    "make_calendar_features": "mq_cenn.preprocessing.calendar_features",
+    "add_calendar_features": "mq_cenn.preprocessing.calendar_features",
+    "add_seasonal_lag_features": "mq_cenn.preprocessing.seasonal_lags",
+    "make_seasonal_lag_matrix": "mq_cenn.preprocessing.seasonal_lags",
+    "seasonal_naive_forecast": "mq_cenn.preprocessing.seasonal_lags",
 }
 
 
@@ -72,4 +83,13 @@ __all__ = [
     "MQCeNNTrace",
     "make_ablation_suite",
     "set_global_seed",
+    "make_supervised_windows",
+    "chronological_split",
+    "train_only_standardize",
+    "flatten_windows",
+    "make_calendar_features",
+    "add_calendar_features",
+    "add_seasonal_lag_features",
+    "make_seasonal_lag_matrix",
+    "seasonal_naive_forecast",
 ]
