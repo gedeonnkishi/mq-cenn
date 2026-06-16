@@ -1,0 +1,76 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Editable installs
+*.pth
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Native compiled extensions
+*.pyd
+*.so
+*.dll
+*.dylib
+*.obj
+*.o
+*.lib
+*.exp
+
+# CUDA / C++ temporary files
+*.cu.o
+*.ptx
+*.cubin
+
+# Benchmark generated results
+benchmarks/results/*
+!benchmarks/results/.gitkeep
+
+# Local datasets
+data/
+datasets/
+*.csv
+*.xlsx
+*.parquet
+*.h5
+*.npy
+*.npz
+
+# Keep project files
+!requirements.txt
+!requirements-dev.txt
+!requirements-examples.txt
