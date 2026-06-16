@@ -1,0 +1,31 @@
+experiment:
+  name: default_regression
+  seed: 42
+  output_dir: benchmarks/results
+
+data:
+  kind: synthetic_nonstationary
+  n_samples: 220
+  lookback: 24
+  noise: 0.05
+  train_fraction: 0.70
+  calibration_fraction: 0.15
+  test_fraction: 0.15
+
+model:
+  n_features_per_expert: 32
+  n_experts_per_kernel: 1
+  bridge_dim: 8
+  cenn_hidden: 8
+  cenn_epochs: 1
+  batch_size: 16
+  patience: 1
+  stationarize: true
+  backend: auto
+  device: auto
+
+baselines:
+  persistence: true
+  moving_average: true
+  ridge: true
+  mq_cenn: true
