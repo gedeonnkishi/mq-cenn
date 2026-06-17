@@ -25,10 +25,18 @@ _SYMBOL_TO_MODULE = {
     "CrossExpertBridge": "mq_cenn.core.bridge",
     "SignedInterferenceGate": "mq_cenn.core.gate",
 
-    # Estimators
+    # Estimators — single-step
     "FallbackStrategy": "mq_cenn.estimators.regressor",
     "MQCeNNRegressor": "mq_cenn.estimators.regressor",
     "MQCeNNTrace": "mq_cenn.estimators.regressor",
+
+    # Estimators — multi-step
+    "MQCeNNMultiStepRegressor": "mq_cenn.estimators.multistep",
+    "MQCeNNMultiStepTrace": "mq_cenn.estimators.multistep",
+
+    # Estimators — anomaly detection
+    "MQCeNNAnomalyDetector": "mq_cenn.estimators.anomaly",
+    "MQCeNNAnomalyTrace": "mq_cenn.estimators.anomaly",
 
     # Ablation
     "make_ablation_suite": "mq_cenn.ablation.suite",
@@ -38,6 +46,7 @@ _SYMBOL_TO_MODULE = {
 
     # Preprocessing
     "make_supervised_windows": "mq_cenn.preprocessing.windowing",
+    "make_multistep_windows": "mq_cenn.preprocessing.windowing",
     "chronological_split": "mq_cenn.preprocessing.windowing",
     "train_only_standardize": "mq_cenn.preprocessing.windowing",
     "flatten_windows": "mq_cenn.preprocessing.windowing",
@@ -81,9 +90,14 @@ __all__ = [
     "FallbackStrategy",
     "MQCeNNRegressor",
     "MQCeNNTrace",
+    "MQCeNNMultiStepRegressor",
+    "MQCeNNMultiStepTrace",
+    "MQCeNNAnomalyDetector",
+    "MQCeNNAnomalyTrace",
     "make_ablation_suite",
     "set_global_seed",
     "make_supervised_windows",
+    "make_multistep_windows",
     "chronological_split",
     "train_only_standardize",
     "flatten_windows",
