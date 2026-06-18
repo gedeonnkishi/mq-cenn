@@ -197,6 +197,7 @@ class MQCeNNMultiStepTrace:
     n_experts: int
     kernel_families: List[str]
     alpha_used: float
+    last_value_index: int
     reliability_threshold: float
     mean_reliability_cal: float
     fallback_rate_cal: float
@@ -269,6 +270,10 @@ class MQCeNNMultiStepRegressor(BaseEstimator, RegressorMixin):
     fallback_strategy : str
         ``"teacher_mean"`` | ``"persistence"``.
         ``"stable_ridge"`` is not supported in multi-step mode (use teacher_mean).
+    last_value_index : int
+        Column index of the last observed target value inside a flattened window.
+        Use ``metadata.last_value_index`` from ``make_multistep_windows`` for
+        flattened multivariate inputs. Used only by ``fallback_strategy="persistence"``.
     random_state : int
         Global seed for reproducibility.
     backend : str
@@ -297,6 +302,7 @@ class MQCeNNMultiStepRegressor(BaseEstimator, RegressorMixin):
         reliability_sensitivity: float = 1.0,
         novelty_weight: float = 0.5,
         fallback_strategy: FallbackStrategy = "teacher_mean",
+        last_value_index: int = -1,
         random_state: int = 42,
         backend: str = "auto",
         device: str = "auto",
@@ -319,6 +325,7 @@ class MQCeNNMultiStepRegressor(BaseEstimator, RegressorMixin):
         self.reliability_sensitivity = float(reliability_sensitivity)
         self.novelty_weight = float(novelty_weight)
         self.fallback_strategy = fallback_strategy
+        self.last_value_index = int(last_value_index)
         self.random_state = int(random_state)
         self.backend = backend
         self.device = device
@@ -488,6 +495,7 @@ class MQCeNNMultiStepRegressor(BaseEstimator, RegressorMixin):
             n_experts=self.pool_.n_experts_,
             kernel_families=[spec.name for spec in self.kernel_specs],
             alpha_used=self.alpha,
+            last_value_index=int(self.last_value_index),
             reliability_threshold=float(self.reliability_threshold),
             mean_reliability_cal=float(cal_reliability.mean()),
             fallback_rate_cal=fallback_rate_cal,
@@ -669,6 +677,18 @@ class MQCeNNMultiStepRegressor(BaseEstimator, RegressorMixin):
 
         return pred.detach().cpu().numpy().astype(np.float64)
 
+    def _resolved_last_value_index(self, n_features: int) -> int:
+        """Resolve the last-value index and validate it for X."""
+        idx = int(self.last_value_index)
+        if idx < 0:
+            idx = n_features + idx
+        if idx < 0 or idx >= n_features:
+            raise ValueError(
+                f"last_value_index={self.last_value_index} is invalid for "
+                f"input width {n_features}."
+            )
+        return idx
+
     def _fallback_prediction(
         self,
         X: np.ndarray,
@@ -680,8 +700,11 @@ class MQCeNNMultiStepRegressor(BaseEstimator, RegressorMixin):
         Returns (n_samples, horizon).
         """
         if self.fallback_strategy == "persistence":
-            # Repeat last value in window across all horizon steps
-            last_val = X[:, -1].reshape(-1, 1)  # (n, 1)
+            # Repeat the last observed target value across the horizon.
+            # For flattened multivariate windows, pass last_value_index from
+            # make_multistep_windows(..., return_metadata=True).
+            idx = self._resolved_last_value_index(X.shape[1])
+            last_val = X[:, idx].reshape(-1, 1)  # (n, 1)
             return np.repeat(last_val, self.horizon, axis=1)
 
         # teacher_mean: average of expert forecasts

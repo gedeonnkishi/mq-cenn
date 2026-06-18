@@ -45,7 +45,7 @@ from typing import Dict, List, Optional, Sequence
 import numpy as np
 from sklearn.base import BaseEstimator, OutlierMixin
 
-from mq_cenn.core.experts import KernelRidgeExpert, MultiKernelExpertPool
+from mq_cenn.core.experts import MultiKernelExpertPool
 from mq_cenn.core.kernels import DEFAULT_KERNEL_SPECS, KernelSpec
 from mq_cenn.core.reliability import ReliabilityCalibrator
 from mq_cenn.utils.seed import set_global_seed
@@ -243,8 +243,11 @@ class MQCeNNAnomalyDetector(BaseEstimator, OutlierMixin):
         train_scores = self.reliability_.score(X, pool_preds)
 
         if self.anomaly_rate_train > 0.0:
-            q = 1.0 - float(np.clip(self.anomaly_rate_train, 0.0, 0.49))
-            self.threshold_ = float(np.quantile(train_scores, 1.0 - q))
+            # Reliability is low for anomalies. To flag approximately
+            # anomaly_rate_train of the training samples, use that lower-tail
+            # reliability quantile as threshold.
+            rate = float(np.clip(self.anomaly_rate_train, 0.0, 0.49))
+            self.threshold_ = float(np.quantile(train_scores, rate))
         else:
             self.threshold_ = float(self.reliability_threshold)
 
@@ -260,9 +263,9 @@ class MQCeNNAnomalyDetector(BaseEstimator, OutlierMixin):
             claim_ledger={
                 "quantum_computation": "No QPU. Classical random-feature proxies only.",
                 "anomaly_score": (
-                    "Score = -reliability. Reliability = exp(-sensitivity * "
+                    "Score = reliability - 1. Reliability = exp(-sensitivity * "
                     "(disagreement + novelty_weight * novelty)). "
-                    "More negative = more anomalous."
+                    "Lower values are more anomalous."
                 ),
                 "supervision": (
                     "Unsupervised. No anomaly labels used. "
@@ -285,12 +288,16 @@ class MQCeNNAnomalyDetector(BaseEstimator, OutlierMixin):
         """
         Compute anomaly scores for input windows.
 
-        Follows the sklearn ``OutlierMixin`` convention:
+        Convention used here:
         **more negative = more anomalous**.
 
-        The raw reliability score in ``[0, 1]`` is negated:
-        - A perfectly normal window → reliability ≈ 1 → score ≈ -1 (not anomalous)
-        - A strongly anomalous window → reliability ≈ 0 → score ≈ 0 (anomalous)
+        The raw reliability score is in ``[0, 1]``:
+        - normal window: reliability ≈ 1
+        - anomalous window: reliability ≈ 0
+
+        We therefore return ``reliability - 1``:
+        - normal window → score ≈ 0
+        - anomalous window → score ≈ -1
 
         Parameters
         ----------
@@ -299,19 +306,11 @@ class MQCeNNAnomalyDetector(BaseEstimator, OutlierMixin):
         Returns
         -------
         np.ndarray of shape (n_samples,)
-            Anomaly scores. Range: approximately ``(-1, 0)``.
+            Anomaly scores in approximately ``[-1, 0]``.
+            Lower values indicate more anomalous samples.
         """
-        self._check_fitted()
-
-        X = _as_2d_float64(X, name="X")
-
-        assert self.pool_ is not None
-        assert self.reliability_ is not None
-
-        pool_preds = self.pool_.predict_pool(X)
-        reliability = self.reliability_.score(X, pool_preds)
-
-        return -reliability  # sklearn convention: negative = anomalous
+        reliability = self.reliability_scores(X)
+        return reliability - 1.0
 
     def predict(self, X: ArrayLike) -> np.ndarray:
         """
@@ -326,19 +325,13 @@ class MQCeNNAnomalyDetector(BaseEstimator, OutlierMixin):
         np.ndarray of shape (n_samples,), dtype int
             +1 for normal, -1 for anomaly (sklearn OutlierMixin convention).
         """
-        scores = self.score_samples(X)
-        # scores = -reliability; threshold_ is a reliability value
-        # → sample is anomalous when reliability < threshold_
-        # → scores > -threshold_  (since scores = -reliability)
-        labels = np.where(scores > -self.threshold_, -1, 1)
+        reliability = self.reliability_scores(X)
+        labels = np.where(reliability < self.threshold_, -1, 1)
         return labels.astype(int)
 
     def reliability_scores(self, X: ArrayLike) -> np.ndarray:
         """
         Return raw reliability scores in [0, 1].
-
-        Convenience method that inverts the sign convention of
-        ``score_samples``. Useful for plotting and thresholding.
 
         Parameters
         ----------
@@ -349,15 +342,26 @@ class MQCeNNAnomalyDetector(BaseEstimator, OutlierMixin):
         np.ndarray of shape (n_samples,)
             Values in [0, 1]. Low = likely anomaly.
         """
-        return -self.score_samples(X)
+        self._check_fitted()
+
+        X = _as_2d_float64(X, name="X")
+
+        assert self.pool_ is not None
+        assert self.reliability_ is not None
+
+        pool_preds = self.pool_.predict_pool(X)
+        reliability = self.reliability_.score(X, pool_preds)
+        return reliability.astype(np.float64)
 
     def decision_function(self, X: ArrayLike) -> np.ndarray:
         """
         Sklearn-compatible decision function.
 
-        Returns the same values as ``score_samples``.
+        Positive values indicate normal samples.
+        Negative values indicate anomalous samples.
         """
-        return self.score_samples(X)
+        reliability = self.reliability_scores(X)
+        return reliability - self.threshold_
 
 
 __all__ = [
