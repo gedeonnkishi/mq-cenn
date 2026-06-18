@@ -1,9 +1,10 @@
 [build-system]
-requires = [
-    "setuptools>=68,<82",
-    "wheel",
-    "pybind11>=2.11"
-]
+# pybind11 is only needed when building the optional C++/CUDA extensions.
+# For a standard pip install (Kaggle, Colab, Jupyter), it is NOT required.
+# The C++ and CUDA backends are opt-in via environment variables:
+#   MQCENN_BUILD_CPP=1   pip install .
+#   MQCENN_BUILD_CUDA=1  pip install .
+requires = ["setuptools>=68,<82", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
