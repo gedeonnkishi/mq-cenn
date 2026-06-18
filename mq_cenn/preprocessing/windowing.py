@@ -353,7 +353,8 @@ def make_multistep_windows(
     horizon: int = 12,
     flatten: bool = True,
     max_samples: Optional[int] = None,
-) -> tuple:
+    return_metadata: bool = False,
+):
     """
     Build supervised windows for direct multi-step forecasting.
 
@@ -383,10 +384,20 @@ def make_multistep_windows(
     max_samples:
         If provided, keeps the most recent ``max_samples`` samples.
 
+    return_metadata:
+        If True, returns ``(X, y, metadata)``. The metadata contains
+        ``last_value_index``, which is important when using flattened
+        multivariate windows with persistence fallback.
+
     Returns
     -------
-    X : np.ndarray, shape (n_samples, lookback * n_features) or (n_samples, lookback, n_features)
-    y : np.ndarray, shape (n_samples, horizon)
+    X : np.ndarray
+        Shape ``(n_samples, lookback * n_features)`` if ``flatten=True``,
+        otherwise ``(n_samples, lookback, n_features)``.
+    y : np.ndarray
+        Shape ``(n_samples, horizon)``.
+    metadata : WindowMetadata, optional
+        Returned only when ``return_metadata=True``.
     """
     if lookback <= 0:
         raise ValueError("lookback must be strictly positive.")
@@ -422,20 +433,50 @@ def make_multistep_windows(
 
     X_list = []
     y_list = []
+    start_indices = []
+    target_indices = []
 
-    # t is the index of the first target step (t+1 after the last input)
+    # t is the index of the first target step.
+    # The input is values[t-lookback:t].
+    # The target is target[t:t+horizon].
     for t in range(lookback, n_timesteps - horizon + 1):
         X_list.append(values_2d[t - lookback : t])
         y_list.append(target[t : t + horizon])
+        start_indices.append(t - lookback)
+        target_indices.append(t)
 
     X = np.asarray(X_list, dtype=np.float64)  # (n, lookback, n_features)
     y = np.asarray(y_list, dtype=np.float64)  # (n, horizon)
+    start_indices = np.asarray(start_indices, dtype=np.int64)
+    target_indices = np.asarray(target_indices, dtype=np.int64)
 
-    if max_samples is not None and max_samples > 0:
-        X = X[-max_samples:]
-        y = y[-max_samples:]
+    if max_samples is not None:
+        if max_samples <= 0:
+            raise ValueError("max_samples must be strictly positive when provided.")
+        if len(y) > max_samples:
+            X = X[-max_samples:]
+            y = y[-max_samples:]
+            start_indices = start_indices[-max_samples:]
+            target_indices = target_indices[-max_samples:]
 
     if flatten:
-        X = X.reshape(X.shape[0], lookback * n_features)
+        X_out = X.reshape(X.shape[0], lookback * n_features)
+        last_value_index = lookback * n_features - n_features + target_index
+    else:
+        X_out = X
+        last_value_index = lookback - 1
 
-    return X, y
+    metadata = WindowMetadata(
+        lookback=lookback,
+        horizon=horizon,
+        n_features=n_features,
+        flattened=flatten,
+        last_value_index=last_value_index,
+        sample_start_indices=start_indices,
+        target_indices=target_indices,
+    )
+
+    if return_metadata:
+        return X_out, y, metadata
+
+    return X_out, y
