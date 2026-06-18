@@ -104,7 +104,7 @@ ext_modules, cmdclass = build_extensions()
 
 setup(
     name="mq-cenn",
-    version="0.1.0",
+    version="1.1.0",
     description="MQ-CeNN framework for quantum-inspired time-series forecasting",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
