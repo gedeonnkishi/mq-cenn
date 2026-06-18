@@ -342,3 +342,100 @@ def train_only_standardize(
         return transformed[0]
 
     return tuple(transformed)
+
+
+def make_multistep_windows(
+    values,
+    target_values=None,
+    *,
+    target_index: int = 0,
+    lookback: int = 24,
+    horizon: int = 12,
+    flatten: bool = True,
+    max_samples: Optional[int] = None,
+) -> tuple:
+    """
+    Build supervised windows for direct multi-step forecasting.
+
+    Each sample maps a lookback window to the next ``horizon`` target values.
+    The target matrix ``y`` has shape ``(n_samples, horizon)``; each row is the
+    ground-truth sequence ``[t+1, t+2, ..., t+horizon]``.
+
+    This is the windowing function required by ``MQCeNNMultiStepRegressor``.
+
+    Parameters
+    ----------
+    values:
+        Univariate or multivariate sequence of shape ``(n_timesteps,)`` or
+        ``(n_timesteps, n_features)``.
+    target_values:
+        Optional explicit target series of shape ``(n_timesteps,)``.
+        If omitted, ``values[:, target_index]`` is used.
+    target_index:
+        Target column index when ``target_values`` is not provided.
+    lookback:
+        Number of past timesteps used as input features.
+    horizon:
+        Number of future timesteps to predict simultaneously.
+    flatten:
+        If True, X has shape ``(n_samples, lookback * n_features)``.
+        If False, X has shape ``(n_samples, lookback, n_features)``.
+    max_samples:
+        If provided, keeps the most recent ``max_samples`` samples.
+
+    Returns
+    -------
+    X : np.ndarray, shape (n_samples, lookback * n_features) or (n_samples, lookback, n_features)
+    y : np.ndarray, shape (n_samples, horizon)
+    """
+    if lookback <= 0:
+        raise ValueError("lookback must be strictly positive.")
+
+    if horizon <= 0:
+        raise ValueError("horizon must be strictly positive.")
+
+    values_2d = _as_2d_values(values)
+
+    if target_values is None:
+        if target_index < 0 or target_index >= values_2d.shape[1]:
+            raise ValueError(
+                f"target_index={target_index} is invalid for "
+                f"{values_2d.shape[1]} features."
+            )
+        target = values_2d[:, target_index]
+    else:
+        target = _as_1d_target(target_values)
+
+    if len(values_2d) != len(target):
+        raise ValueError(
+            "values and target_values must have the same length. "
+            f"Got {len(values_2d)} and {len(target)}."
+        )
+
+    n_timesteps, n_features = values_2d.shape
+    min_needed = lookback + horizon
+    if n_timesteps < min_needed:
+        raise ValueError(
+            f"Not enough timesteps. Need at least lookback+horizon={min_needed}, "
+            f"got {n_timesteps}."
+        )
+
+    X_list = []
+    y_list = []
+
+    # t is the index of the first target step (t+1 after the last input)
+    for t in range(lookback, n_timesteps - horizon + 1):
+        X_list.append(values_2d[t - lookback : t])
+        y_list.append(target[t : t + horizon])
+
+    X = np.asarray(X_list, dtype=np.float64)  # (n, lookback, n_features)
+    y = np.asarray(y_list, dtype=np.float64)  # (n, horizon)
+
+    if max_samples is not None and max_samples > 0:
+        X = X[-max_samples:]
+        y = y[-max_samples:]
+
+    if flatten:
+        X = X.reshape(X.shape[0], lookback * n_features)
+
+    return X, y
